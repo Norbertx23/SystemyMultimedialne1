@@ -90,3 +90,8 @@ venv.bak/
 .vscode/
 *.swp
 
+*.png
+*.jpg
+*.wav
+*.tif
+
