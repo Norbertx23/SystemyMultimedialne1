@@ -14,7 +14,7 @@ from io import BytesIO
 Test = True
 Scaling_test = True  # run only artificial test for scaling methods
 
-ScalesUp = [2,4]  # list of parameters values
+ScalesUp = [50]  # list of parameters values
 ScalesDown = [0.5,0.75]  # list of parameters values
 
 OutputRaportFile = ".docx"
@@ -51,14 +51,14 @@ def NearestNeigbourScaling(In_img, scale):
     else:
         Out_img = np.zeros((new_h, new_w, In_img.shape[2]))
 
-    rows_idx = np.linspace(0, h - 1, new_h)
-    cols_idx = np.linspace(0, w - 1, new_w)
+    y0s_idx = np.linspace(0, h - 1, new_h)
+    x0s_idx = np.linspace(0, w - 1, new_w)
 
-    for row_idx, row in enumerate(rows_idx):
-        for col_idx, col in enumerate(cols_idx):
-            xp = np.round(row).astype(int)
-            yp = np.round(col).astype(int)
-            Out_img[row_idx, col_idx] = In_img[xp, yp]
+    for y0_idx, y0 in enumerate(y0s_idx):
+        for x0_idx, x0 in enumerate(x0s_idx):
+            xp = np.round(y0).astype(int)
+            yp = np.round(x0).astype(int)
+            Out_img[y0_idx, x0_idx] = In_img[xp, yp]
 
 
     return Out_img.astype(In_img.dtype)
@@ -75,19 +75,19 @@ def BilinearScaling(In_img, scale):
     else:
         Out_img = np.zeros((new_h, new_w, In_img.shape[2]))
 
-    rows_idx = np.linspace(0, h - 1, new_h)
-    cols_idx = np.linspace(0, w - 1, new_w)
+    y0s_idx = np.linspace(0, h - 1, new_h)
+    x0s_idx = np.linspace(0, w - 1, new_w)
 
-    for row_idx, row in enumerate(rows_idx):
-        for col_idx, col in enumerate(cols_idx):
-            y1 = int(np.floor(row))
-            x1 = int(np.floor(col))
+    for y0_idx, y0 in enumerate(y0s_idx):
+        for x0_idx, x0 in enumerate(x0s_idx):
+            y1 = int(np.floor(y0))
+            x1 = int(np.floor(x0))
 
-            y2 = min(y1 + 1, h - 1)
-            x2 = min(x1 + 1, w - 1)
+            y2 = int(np.ceil(y0))
+            x2 = int(np.ceil(x0))
 
-            dy = row - y1
-            dx = col - x1
+            dy = y0 - y1
+            dx = x0 - x1
 
 
             p11 = In_img[y1, x1]
@@ -95,10 +95,7 @@ def BilinearScaling(In_img, scale):
             p21 = In_img[y2, x1]
             p22 = In_img[y2, x2]
 
-            Out_img[row_idx, col_idx] = p11 * (1 - dx) * (1 - dy) + \
-                                        p12 * dx * (1 - dy) + \
-                                        p21 * (1 - dx) * dy + \
-                                        p22 * dx * dy
+            Out_img[y0_idx, x0_idx] = p11 * (1 - dx) * (1 - dy) + p12 * dx * (1 - dy) + p21 * (1 - dx) * dy + p22 * dx * dy
 
 
     return Out_img.astype(In_img.dtype)
