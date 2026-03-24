@@ -11,13 +11,13 @@ from io import BytesIO
 ### Settings #############################
 ##########################################
 
-Test = True
+Test = False
 Scaling_test = False  # run only artificial test for scaling methods
 
 ScalesUp = [3,5,10]  # list of parameters values
-ScalesDown = [0.1,0.05,0.01]  # list of parameters values
+ScalesDown = [0.3,0.1,0.05]  # list of parameters values
 
-OutputRaportFile = ".docx"
+OutputRaportFile = "raport3.docx"
 
 ##########################################
 ### Data Set #############################
@@ -35,11 +35,15 @@ SmallImages = [
 BigImages = [  # list of dictionaries
     {
         "Filename": "IMG_BIG/BIG_0001.jpg",  # File name
-        "ROIs": [[250, 250, 500, 500]]  # list of Region of interests for this image more then 1 per file
+        "ROIs": [[250, 250, 800, 800],
+            [100, 100, 1000, 800],
+            [400, 300, 700, 700]]  # list of Region of interests for this image more then 1 per file
     },
     {
         "Filename": "IMG_BIG/BIG_0002.jpg",  # File name
-        "ROIs": [[250, 250, 500, 500]]  # list of Region of interests for this image more then 1 per file
+        "ROIs": [[250, 250, 900, 900],
+            [50, 50, 1000, 1000],
+            [300, 100, 800, 600]]  # list of Region of interests for this image more then 1 per file
     }
 ]
 
@@ -307,9 +311,21 @@ def MedianResizing(In_img, scale):
     return Out_img.astype(In_img.dtype)
 
 def EdgeDetection(img):
-    ## configure your edge detection algorithm
-    edges = img
-    return edges
+    if img.dtype != np.uint8:
+        if np.max(img) <= 1.0:
+            img= (img * 255).astype(np.uint8)
+        else:
+            img= img.astype(np.uint8)
+
+    if (len(img.shape) < 3):
+        gray = img.copy()
+    else:
+        gray = np.mean(img, axis=2).astype(np.uint8)
+
+    edges = cv2.Canny(gray, 100, 200)
+
+    edges = np.stack([edges, edges, edges], axis=-1)
+    return edges.astype(img.dtype)
 
 
 ##########################################
