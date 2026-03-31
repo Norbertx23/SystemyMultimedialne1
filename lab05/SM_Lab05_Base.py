@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import cv2
 import os
+from scipy.interpolate import interp1d
 
 import scipy
 from docx import Document
@@ -81,18 +82,42 @@ def plotAudio(Signal,Fs,axs,TimeMargin=[0,0.02],fsize = 2 ** 8):
 
 
 def Kwant(data,bit):
+    d = 2 ** bit - 1
 
-    return data
+    if np.issubdtype(data.dtype,np.floating):
+        v_min = -1
+        v_max = 1
+    else:
+        v_min = np.iinfo(data.dtype).min
+        v_max = np.iinfo(data.dtype).max
+
+    DataF=data.astype(float)
+    if v_max - v_min == 0:
+        return data
+    DataF=(DataF-v_min)/(v_max-v_min)
+    DataF = DataF * d
+    DataF = np.round(DataF)
+    DataF /= d
+    DataF = DataF * (v_max-v_min) + v_min
+
+    return DataF.astype(data.dtype)
 
 def decimation(Signal,Fs,step):
-    NewSignal=Signal.copy()
-    NewFs=Fs
+    NewSignal=Signal[::step].copy()
+    NewFs=Fs // step
     return NewSignal,NewFs
 
 def interpolation(Signal,Fs,NewFs,kind):
-    NewSignal=Signal.copy()
-    return NewSignal
+    N = len(Signal)
+    N1 = int(N * NewFs / Fs)
 
+    x = np.linspace(0, N - 1, N)
+    x1 = np.linspace(0, N - 1, N1)
+
+    metode_lin = interp1d(x, Signal)
+    NewSignal = metode_lin(x1)
+
+    return NewSignal.astype(Signal.dtype)
 
 ##########################################
 ### Main Program  ########################
