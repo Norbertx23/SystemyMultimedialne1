@@ -12,7 +12,7 @@ from io import BytesIO
 ##########################################
 
 Test=True
-ColorFit_Test=True
+ColorFit_Test=False
 
 
 GrayScale_bits = [1,2,4]
@@ -56,7 +56,7 @@ M2=np.array([[0,8,2,10],
              [3,11,1,9],
              [12,7,13,5]])
 
-OutputRaportFile = ".docx" 
+OutputRaportFile = "raportlab4.docx"
 
 ##########################################
 ### Data Set #############################
@@ -65,8 +65,8 @@ OutputRaportFile = ".docx"
 ImgDir = r'.' # Address of folder with files (do nor delete `r``)
 
 
-GsImages=[] # list of file names with GS images
-ColorImages=[] # list of file names of Color images
+GsImages=['IMG_GS/GS_0001.tif','IMG_GS/GS_0002.png','IMG_GS/GS_0003.png'] # list of file names with GS images
+ColorImages=['IMG_SMALL/SMALL_0002.png','IMG_SMALL/SMALL_0003.png','IMG_SMALL/SMALL_0005.jpg','IMG_SMALL/SMALL_0006.jpg','IMG_SMALL/SMALL_0009.jpg'] # list of file names of Color images
 
 ##########################################
 ### Functions to  ########################
@@ -83,27 +83,72 @@ def imgToFloat(img):
     return img
 
 def colorFit(pixel,Pallet):
-        #######
-        return pixel
+    distances = np.linalg.norm(Pallet - pixel, axis=1)
+    return Pallet[np.argmin(distances)]
 
 def kwant_colorFit(img,Pallet):
         out_img = img.copy()
-        ##### 
+        for k in range(img.shape[0]):
+                for w in range(img.shape[1]):
+                        tmp = colorFit(img[k,w],Pallet)
+                        if len(tmp)==1:
+                            out_img[k,w]=tmp[0]
+                        else:
+                            out_img[k,w]=tmp[:]
         return out_img.astype(img.dtype)
 
 def dith_randm(img):
-        out_img = img.copy()
-        ##### 
-        return out_img.astype(img.dtype)
+    wiersze, kolumny = img.shape[:2]
+    r = np.random.rand(wiersze, kolumny)
+    out_img = (img >= r) * 1.0
+    return out_img.astype(img.dtype)
 
 def dith_ordered(img,Pallet,r=1,M=M2):
         out_img = img.copy()
-        ##### 
+
+        dim = M.shape[0]
+        Mpre = (M + 1) / (dim ** 2) - 0.5
+
+        for k in range(img.shape[0]):
+            for w in range(img.shape[1]):
+                m_val = Mpre[k % dim, w % dim]
+                tmp_val = img[k, w] + r * m_val
+                tmp = colorFit(tmp_val, Pallet)
+                if len(tmp) == 1:
+                    out_img[k, w] = tmp[0]
+                else:
+                    out_img[k, w] = tmp[:]
+
         return out_img.astype(img.dtype)
 
 def dith_FS(img,Pallet):
         out_img = img.copy()
-        ##### 
+
+        rows = out_img.shape[0]
+        cols = out_img.shape[1]
+
+        for y in range(rows):
+            for x in range(cols):
+                oldpixel = out_img[y, x].copy()
+                newpixel = colorFit(oldpixel, Pallet)
+
+                if len(newpixel) == 1:
+                    new_val = newpixel[0]
+                else:
+                    new_val = newpixel[:]
+                out_img[y, x] = new_val
+
+                quant_error = oldpixel - new_val
+
+                if x + 1 < cols:
+                    out_img[y, x + 1] += quant_error * 7 / 16
+                if y + 1 < rows and x - 1 >= 0:
+                    out_img[y + 1, x - 1] = out_img[y + 1, x - 1] + quant_error * 3 / 16
+                if y + 1 < rows:
+                    out_img[y + 1, x] = out_img[y + 1, x] + quant_error * 5 / 16
+                if y + 1 < rows and x + 1 < cols:
+                    out_img[y + 1, x + 1] = out_img[y + 1, x + 1] + quant_error * 1 / 16
+
         return out_img.astype(img.dtype)
 
 
@@ -234,7 +279,6 @@ else:
     document = Document()
     document.add_heading('Report',0) # tworzenie nagłówków druga wartość to poziom nagłówka 
     document.add_paragraph("Autor: ")
-    document.add_paragraph("Proszę wstawić mi 2 jeżeli tego nie wyedytuję")
     document.add_section()
     document.add_heading("Test ditheringu na obrazach w skali odcieni szarości",1)
     counter = 1 
