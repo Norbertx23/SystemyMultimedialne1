@@ -15,10 +15,10 @@ import soundfile as sf
 ### Settings #############################
 ##########################################
 
-Test=True
-Kwant_Test=True # test Kwant function
+Test=False
+Kwant_Test=False # test Kwant function
 
-Interpolation_kind=["",""] # what flag for switching interpolation
+Interpolation_kind=["linear", "cubic"] # what flag for switching interpolation
 
 PlotSettings={
     "Bits":[4,8,16,24],
@@ -32,8 +32,10 @@ ListeningSettings={
 }
 
 OutputRaportFile = "raport05.docx"
-OutputFolder="" # place for all your new audio files will be
+OutputFolder="out" # place for all your new audio files will be
 
+if not os.path.exists(OutputFolder):
+    os.makedirs(OutputFolder)
 ##########################################
 ### Data Set #############################
 ##########################################
@@ -42,9 +44,13 @@ AudioDir = r'.' # Address of folder with files (do nor delete `r``)
 
 
 SinFiles=[
-    {"File":"","TimeMargin":[0,0.02]},
-    ] # list of dicts with file names with Sinus singals and fragment that will be displayed
-SingFiles=[] # list of file names of with Singing Voice
+    {"File":"SIN/sin_60Hz.wav","TimeMargin":[0,0.05]},
+    {"File": "SIN/sin_440Hz.wav", "TimeMargin": [0, 0.01]},
+    {"File": "SIN/sin_8000Hz.wav", "TimeMargin": [0, 0.0005]},
+    {"File": "SIN/sin_combined.wav", "TimeMargin": [0, 0.02]},
+
+] # list of dicts with file names with Sinus singals and fragment that will be displayed
+SingFiles=['SING/sing_high1.wav','SING/sing_low1.wav','SING/sing_medium1.wav'] # list of file names of with Singing Voice
 
 ##########################################
 ### Functions to  ########################
@@ -114,7 +120,7 @@ def interpolation(Signal,Fs,NewFs,kind):
     x = np.linspace(0, N - 1, N)
     x1 = np.linspace(0, N - 1, N1)
 
-    metode_lin = interp1d(x, Signal)
+    metode_lin = interp1d(x, Signal, kind)
     NewSignal = metode_lin(x1)
 
     return NewSignal.astype(Signal.dtype)
@@ -166,8 +172,7 @@ else:
     # generate raport
     document = Document()
     document.add_heading('Report',0) # tworzenie nagłówków druga wartość to poziom nagłówka 
-    document.add_paragraph("Autor: ")
-    document.add_paragraph("Proszę wstawić mi 2 jeżeli tego nie wyedytuję")
+    document.add_paragraph("Autor: Norbert Świstak")
     document.add_section()
     document.add_heading("Sprawdzanie działania napisanych funkcji na podstawie wykresów",1)
     counter = 1 

@@ -12,7 +12,7 @@ from io import BytesIO
 ##########################################
 
 Test=True
-ColorFit_Test=False
+ColorFit_Test=True
 
 
 GrayScale_bits = [1,2,4]
