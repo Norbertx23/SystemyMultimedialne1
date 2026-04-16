@@ -62,6 +62,13 @@ def rle_decoder(stream: np.array) -> np.array:
 
     return decoded_flat.reshape(shape)
 
+def byte_run_encoder(np_array: np.array) -> np.array:
+    # Implementacja kodowania Byte Run
+    pass
+def byte_decoder(stream: np.array) -> np.array:
+    # Implementacja dekodowania Byte Run
+    pass
+
 
 a = np.array([[1, 1, 1, 2, 2], [3, 3, 4, 4, 4]])
 encoded = rle_encoder(a)
