@@ -11,10 +11,11 @@ from io import BytesIO
 ### Settings #############################
 ##########################################
 
-Only_Tests=False
+Only_Tests=True
 bit_test=8
+A = 87.6
 
-DPCM_n=100
+DPCM_n=5
 DPCM_predictor=np.mean
 
 OutputRaportFile = ".docx" 
@@ -32,23 +33,67 @@ SingFiles=[] # list of file names of with Singing Voice
 ### Functions to  ########################
 ##########################################
 
-def Kwant(x,bit):
-    return x
+def Kwant(data,bit):
+    d = 2 ** bit - 1
+
+    if np.issubdtype(data.dtype, np.floating):
+        v_min = -1
+        v_max = 1
+    else:
+        v_min = np.iinfo(data.dtype).min
+        v_max = np.iinfo(data.dtype).max
+
+    DataF = data.astype(float)
+    if v_max - v_min == 0:
+        return data
+    DataF = (DataF - v_min) / (v_max - v_min)
+    DataF = DataF * d
+    DataF = np.round(DataF)
+    DataF /= d
+    DataF = DataF * (v_max - v_min) + v_min
+
+    return DataF.astype(data.dtype)
+
 
 def A_law_compress(x):
-    y=x
-    return y
+    abs_x = np.abs(x)
+    y = np.zeros(x.shape)
+
+    idx = abs_x < (1 / A)
+
+    y[idx] = (A * abs_x[idx]) / (1 + np.log(A))
+    y[np.logical_not(idx)] = (1 + np.log(A * abs_x[np.logical_not(idx)])) / (1 + np.log(A))
+
+    return np.sign(x) * y
+
 
 def A_law_decompress(x):
-    y=x
-    return y
-    
+    abs_x = np.abs(x)
+    y = np.zeros(x.shape)
+
+    threshold = 1 / (1 + np.log(A))
+    idx = abs_x < threshold
+
+    y[idx] = (abs_x[idx] * (1 + np.log(A))) / A
+    y[np.logical_not(idx)] = np.exp(abs_x[np.logical_not(idx)] * (1 + np.log(A)) - 1) / A
+
+    return np.sign(x) * y
+
+
 def mu_law_compress(x):
-    y=x
+    mu = 255.0
+    abs_x = np.abs(x)
+
+    y = np.sign(x) * (np.log(1 + mu * abs_x) / np.log(1 + mu))
+
     return y
 
 def mu_law_decompress(x):
-    y=x
+    mu = 255.0
+    abs_x = np.abs(x)
+
+    y = np.sign(x) * (1 / mu) * ((1 + mu) ** abs_x - 1)
+
     return y
 
 def DPCM_compress(x,bit):
@@ -60,7 +105,13 @@ def DPCM_compress(x,bit):
     return y
 
 def DPCM_decompress(x):
-    y=x
+    y = np.zeros(x.shape)
+    e = 0
+
+    for i in range(0, x.shape[0]):
+        y[i] = x[i] + e
+
+        e = y[i]
     return y
 
 def DPCM_compress_pred(x,bit,n,predictor=np.mean): 
@@ -76,7 +127,19 @@ def DPCM_compress_pred(x,bit,n,predictor=np.mean):
     return y
 
 def DPCM_decompress_pred(x,n,predictor=np.mean):
-    y=x
+    y = np.zeros(x.shape)
+    e = 0
+    for i in range(0, x.shape[0]):
+        y[i] = x[i] + e
+
+        idx = (np.arange(i - n, i, 1, dtype=int) + 1)
+        idx = np.delete(idx, idx < 0)
+
+        if idx.size == 0:
+            e = 0
+        else:
+            e = predictor(y[idx])
+
     return y
 
 ##########################################
@@ -88,8 +151,7 @@ document = Document()
 if not Only_Tests:
     # generate raport
     document.add_heading('Report',0) # tworzenie nagłówków druga wartość to poziom nagłówka 
-    document.add_paragraph("Autor: ")
-    document.add_paragraph("Proszę wstawić mi 2 jeżeli tego nie wyedytuję")
+    document.add_paragraph("Autor: Norbert Świstak")
     document.add_section()
     document.add_heading('Wykresy testujące działanie algorytmów',1)
 
