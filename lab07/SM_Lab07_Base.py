@@ -11,23 +11,30 @@ from io import BytesIO
 ### Settings #############################
 ##########################################
 
-Only_Tests=True
+Only_Tests=False
 bit_test=8
 A = 87.6
 
 DPCM_n=5
 DPCM_predictor=np.mean
 
-OutputRaportFile = ".docx" 
-OutputFolder="" # place for all your new audio files will be
+OutputRaportFile = "raport07.docx"
+BaseDir = os.path.dirname(os.path.abspath(__file__))
+OutputFolder = os.path.join(BaseDir, "out")
 
 ##########################################
 ### Data Set #############################
 ##########################################
 
-AudioDir = r'.' # Address of folder with files (do nor delete `r``)
+AudioDir = os.path.join(BaseDir, "SING")
 
-SingFiles=[] # list of file names of with Singing Voice
+SingFiles=[
+'sing_high1.wav',
+'sing_low1.wav',
+'sing_medium1.wav',
+
+
+] # list of file names of with Singing Voice
 
 ##########################################
 ### Functions to  ########################
@@ -227,18 +234,19 @@ else:
     document.add_section()
     document.add_heading("Podsumowanie i Wnioski",1)
     document.add_paragraph("Tu proszę krótko podsumować wszystko")
-    document.save(OutputRaportFile) 
-    # Audio files Generator
+    document.save(OutputRaportFile)
+
+    os.makedirs(OutputFolder, exist_ok=True)
     for file in SingFiles:
         Signal, Fs = sf.read(os.path.join(AudioDir,file), dtype='float32') 
         sfile=file.split(os.sep)[-1].split('.')
         for bit in [8,7,6,5,4,3,2]:
-            y_alaw_decomp =A_law_decompress(Kwant(A_law_compress(Signal),bit_test))
-            y_mulaw_decomp =mu_law_decompress(Kwant(mu_law_compress(Signal),bit_test))
+            y_alaw_decomp =A_law_decompress(Kwant(A_law_compress(Signal),bit))
+            y_mulaw_decomp =mu_law_decompress(Kwant(mu_law_compress(Signal),bit))
 
-            dpcm_c=DPCM_compress(Signal,bit_test)
+            dpcm_c=DPCM_compress(Signal,bit)
             dpcm_dec=DPCM_decompress(dpcm_c)
-            dpcm_c_p=DPCM_compress_pred(Signal,bit_test,n=DPCM_n,predictor=DPCM_predictor)
+            dpcm_c_p=DPCM_compress_pred(Signal,bit,n=DPCM_n,predictor=DPCM_predictor)
             dpcm_dec_p=DPCM_decompress_pred(dpcm_c_p,n=DPCM_n,predictor=DPCM_predictor)
             sf.write(os.path.join(OutputFolder,f"{sfile[0]}_A_LAW_{bit}b.wav"),data=y_alaw_decomp,samplerate=Fs)
             sf.write(os.path.join(OutputFolder,f"{sfile[0]}_mu_LAW_{bit}b.wav"),data=y_mulaw_decomp,samplerate=Fs)
