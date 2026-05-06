@@ -13,7 +13,7 @@ import lab06.main as rle
 ### Settings #############################
 ##########################################
 
-Test = True
+Test = False
 
 OutputRaportFile = "raport08.docx"
 
@@ -53,19 +53,39 @@ ImgDir = r'.'  # Address of folder with files (do nor delete `r``)
 Images = [
     {
         "Filename": "bruno-guerrero-Ugb9Gaccxys-unsplash.jpg",
-        "ROIs": [[2000, 3000, 512, 512]]
+        "ROIs": [
+            [400, 400, 128, 128],
+            [1200, 2400, 128, 128],
+            [2000, 3000, 128, 128],
+            [3200, 4800, 128, 128],
+        ]
     },
     {
         "Filename": "fedor-PtW4RywQV4s-unsplash.jpg",
-        "ROIs": [[480, 2160, 512, 512]]
+        "ROIs": [
+            [800, 400, 128, 128],
+            [2400, 2800, 128, 128],
+            [480, 2160, 128, 128],
+            [1200, 1920, 128, 128],
+        ]
     },
     {
         "Filename": "gian-gomez-rYB1r1MoOXc-unsplash.jpg",
-        "ROIs": [[1600, 2800, 512, 512]]
+        "ROIs": [
+            [400, 400, 128, 128],
+            [2400, 800, 128, 128],
+            [640, 3200, 128, 128],
+            [1600, 2800, 128, 128],
+        ]
     },
     {
         "Filename": "oskar-smethurst-B1GtwanCbiw-unsplash.jpg",
-        "ROIs": [[960, 1264, 512, 512]]
+        "ROIs": [
+            [320, 800, 128, 128],
+            [1200, 2400, 128, 128],
+            [800, 1840, 128, 128],
+            [960, 1264, 128, 128],
+        ]
     }
 ]
 
@@ -82,6 +102,9 @@ class JPEG_class:
     QY = np.ones((8, 8))
     QC = np.ones((8, 8))
     shape = (0, 0, 3)
+    compressed_Y = np.array([])
+    compressed_Cr = np.array([])
+    compressed_Cb = np.array([])
 
 
 def dct2(a):
@@ -181,6 +204,15 @@ def CompressJPEG(RGB, Ratio="4:4:4", QY=QN, QC=QN):
     JPEG.Cr = CompressLayer(JPEG.Cr, JPEG.QC)
     JPEG.Cb = CompressLayer(JPEG.Cb, JPEG.QC)
 
+    JPEG.compressed_Y = rle.rle_encoder(JPEG.Y)
+    JPEG.compressed_Cr = rle.rle_encoder(JPEG.Cr)
+    JPEG.compressed_Cb = rle.rle_encoder(JPEG.Cb)
+
+    print(f"\n[Chroma: {Ratio}] Kompresja RLE:")
+    print(f"Y:  {len(JPEG.Y)} -> {len(JPEG.compressed_Y)} elementów")
+    print(f"Cr: {len(JPEG.Cr)} -> {len(JPEG.compressed_Cr)} elementów")
+    print(f"Cb: {len(JPEG.Cb)} -> {len(JPEG.compressed_Cb)} elementów")
+
     return JPEG
 
 
@@ -192,9 +224,13 @@ def DecompressJPEG(JPEG):
     else:
         layer_shape_C = (JPEG.shape[0], JPEG.shape[1])
 
-    Y = DecompressLayer(JPEG.Y, layer_shape_Y, JPEG.QY)
-    Cr = DecompressLayer(JPEG.Cr, layer_shape_C, JPEG.QC)
-    Cb = DecompressLayer(JPEG.Cb, layer_shape_C, JPEG.QC)
+    Y_comp = rle.rle_decoder(JPEG.compressed_Y)
+    Cr_comp = rle.rle_decoder(JPEG.compressed_Cr)
+    Cb_comp = rle.rle_decoder(JPEG.compressed_Cb)
+
+    Y = DecompressLayer(Y_comp, layer_shape_Y, JPEG.QY)
+    Cr = DecompressLayer(Cr_comp, layer_shape_C, JPEG.QC)
+    Cb = DecompressLayer(Cb_comp, layer_shape_C, JPEG.QC)
 
     if JPEG.ChromaRatio == "4:2:2":
         Cr = np.repeat(Cr, 2, axis=1)
@@ -220,7 +256,6 @@ def DecompressJPEG(JPEG):
 
 def plot_comparisone(counter, OG, Decomp, figsize=(5, 8)):
     fig, axs = plt.subplots(4, 2, num=counter, sharex=True, sharey=True, figsize=figsize)
-    # obraz oryginalny
     axs[0, 0].imshow(OG)  # RGB
     PRZED_YCrCb = cv2.cvtColor(OG, cv2.COLOR_RGB2YCrCb)
     axs[1, 0].imshow(PRZED_YCrCb[:, :, 0], cmap='gray')
@@ -232,7 +267,6 @@ def plot_comparisone(counter, OG, Decomp, figsize=(5, 8)):
     axs[2, 0].set_title("Cr")
     axs[3, 0].set_title("Cb")
 
-    # obraz po dekompresji
     axs[0, 1].imshow(Decomp)  # RGB
     PO_YCrCb = cv2.cvtColor(Decomp, cv2.COLOR_RGB2YCrCb)
     axs[1, 1].imshow(PO_YCrCb[:, :, 0], cmap='gray')
@@ -299,6 +333,22 @@ else:
                     document.add_picture(memfile, width=Inches(6))  # set document size
                     memfile.close()
                     f.clf()
+
+                    document.add_paragraph(f"Parametry: Chroma = {Chroma}, Kwantyzacja = {Quant}")
+                    document.add_paragraph(
+                        f"Warstwa Y:  {len(tJPEG.Y)} -> {len(tJPEG.compressed_Y)} elementów "
+                        f"({(len(tJPEG.compressed_Y) / max(1, len(tJPEG.Y))) * 100:.2f}%)"
+                    )
+                    document.add_paragraph(
+                        f"Warstwa Cr: {len(tJPEG.Cr)} -> {len(tJPEG.compressed_Cr)} elementów "
+                        f"({(len(tJPEG.compressed_Cr) / max(1, len(tJPEG.Cr))) * 100:.2f}%)"
+                    )
+                    document.add_paragraph(
+                        f"Warstwa Cb: {len(tJPEG.Cb)} -> {len(tJPEG.compressed_Cb)} elementów "
+                        f"({(len(tJPEG.compressed_Cb) / max(1, len(tJPEG.Cb))) * 100:.2f}%)"
+                    )
+                    document.add_paragraph("-" * 40)
+            Counter += 1
     document.add_section()
     document.add_heading("Podsumowanie i wnioski", 1)
     document.add_paragraph("Tu proszę zebrać wszystkie obserwacje na podstawie powyższych wykresów i napisać wnioski.")
