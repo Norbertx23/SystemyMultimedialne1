@@ -9,15 +9,17 @@ from tqdm import tqdm
 ##############################################################################
 
 kat = r'.'  # katalog z plikami wideo
-plik = "clip_3.mp4"  # nazwa pliku
+plik = "clip_4.mp4"  # nazwa pliku
 ile = 20
-key_frame_counter = 4  # Klatka kluczowa co 4 klatki
-plot_frames = np.array([])
+key_frame_counter = 20  # Klatka kluczowa co 4 klatki
+# plot_frames = np.array([15, 31, 47])
+plot_frames = np.array([3, 7, 11,])
 auto_pause_frames = np.array([])  # Bez auto-pauzy
 subsampling = "4:2:0"  # ZMIENIAJ W TRAKCIE TESTÓW (np. 4:2:2, 4:2:0, 4:1:0)
 dzielnik = 4  # ZMIENIAJ W TRAKCIE TESTÓW (np. 2, 4, 8)
 wyswietlaj_kaltki = False  # Pokazuj podgląd wideo
-ROI = [[200, 500, 300, 800]]            # Środek kadru - łapie idącego mężczyznę
+# ROI = [[200, 500, 300, 800]]            # Środek kadru - łapie idącego mężczyznę
+ROI = [[300, 600, 500, 900]]
 metoda_kompresji_strumieniowej = 'RLE'  # 'brak', 'RLE' lub 'ByteRun'
 
 
@@ -354,7 +356,17 @@ for i in range(ile):
             diff = np.abs(ref_crop.astype(float) - dec_crop.astype(float))
             diff_img = np.clip(diff, 0, 255).astype(np.uint8)
 
-            zebrane_do_wykresu.append((ref_crop, diff_img, dec_crop, i))
+            ref_YCrCb = frame[r[0]:r[1], r[2]:r[3]]
+            dec_YCrCb = Decompresed_Frame[r[0]:r[1], r[2]:r[3]]
+
+            diff_Y = np.clip(np.abs(ref_YCrCb[:, :, 0].astype(float) - dec_YCrCb[:, :, 0].astype(float)), 0,
+                             255).astype(np.uint8)
+            diff_Cr = np.clip(np.abs(ref_YCrCb[:, :, 1].astype(float) - dec_YCrCb[:, :, 1].astype(float)), 0,
+                              255).astype(np.uint8)
+            diff_Cb = np.clip(np.abs(ref_YCrCb[:, :, 2].astype(float) - dec_YCrCb[:, :, 2].astype(float)), 0,
+                              255).astype(np.uint8)
+
+            zebrane_do_wykresu.append((ref_crop, diff_img, dec_crop, diff_Y, diff_Cb, diff_Cr, i))
 
     if np.any(auto_pause_frames == i): cv2.waitKey(-1)
 
@@ -375,24 +387,37 @@ nazwa_baza = f"{plik}_sub{safe_sub}_div{dzielnik}_{metoda_kompresji_strumieniowe
 ####     Generowanie i zapis Wykresu Wizualnego (3 obrazki) ##################
 ##############################################################################
 if len(zebrane_do_wykresu) > 0:
-    fig, axs = plt.subplots(len(zebrane_do_wykresu), 3, figsize=(15, 4 * len(zebrane_do_wykresu)))
+    fig, axs = plt.subplots(len(zebrane_do_wykresu)* 2, 3, figsize=(15, 4 * len(zebrane_do_wykresu)))
 
     # Obsługa przypadku, gdy wybraliśmy tylko 1 klatkę do narysowania
     if len(zebrane_do_wykresu) == 1:
         axs = [axs]
 
-    for idx, (oryg, diff, zdek, nr_klatki) in enumerate(zebrane_do_wykresu):
-        axs[idx][0].imshow(oryg)
-        axs[idx][0].set_title(f'Oryginał (Klatka {nr_klatki})')
-        axs[idx][0].axis('off')
+    for idx, (oryg, diff_rgb, zdek, diff_y, diff_cb, diff_cr, nr_klatki) in enumerate(zebrane_do_wykresu):
+        row_idx = idx * 2
+        axs[row_idx][0].imshow(oryg)
+        axs[row_idx][0].set_title(f'Oryginał (Klatka {nr_klatki})')
+        axs[row_idx][0].axis('off')
 
-        axs[idx][1].imshow(diff)
-        axs[idx][1].set_title(f'Różnica (Klatka {nr_klatki})')
-        axs[idx][1].axis('off')
+        axs[row_idx][1].imshow(diff_rgb)
+        axs[row_idx][1].set_title(f'Różnica (Klatka {nr_klatki})')
+        axs[row_idx][1].axis('off')
 
-        axs[idx][2].imshow(zdek)
-        axs[idx][2].set_title(f'Zdekodowana (Klatka {nr_klatki})')
-        axs[idx][2].axis('off')
+        axs[row_idx][2].imshow(zdek)
+        axs[row_idx][2].set_title(f'Zdekodowana (Klatka {nr_klatki})')
+        axs[row_idx][2].axis('off')
+
+        axs[row_idx + 1][0].imshow(diff_y, cmap='gray')
+        axs[row_idx + 1][0].set_title(f'Różnica Y (Luminancja)')
+        axs[row_idx + 1][0].axis('off')
+
+        axs[row_idx + 1][1].imshow(diff_cb, cmap='gray')
+        axs[row_idx + 1][1].set_title(f'Różnica Cb (Chrominancja)')
+        axs[row_idx + 1][1].axis('off')
+
+        axs[row_idx + 1][2].imshow(diff_cr, cmap='gray')
+        axs[row_idx + 1][2].set_title(f'Różnica Cr (Chrominancja)')
+        axs[row_idx + 1][2].axis('off')
 
     plt.tight_layout()
     nazwa_wizualna = f"wizualizacja_{nazwa_baza}.png"
