@@ -9,9 +9,9 @@ from tqdm import tqdm
 ##############################################################################
 
 kat = r'.'  # katalog z plikami wideo
-plik = "clip_4.mp4"  # nazwa pliku
+plik = "clip_1.mp4"  # nazwa pliku
 ile = 20
-key_frame_counter = 20  # Klatka kluczowa co 4 klatki
+key_frame_counter = 8  # Klatka kluczowa co 4 klatki
 # plot_frames = np.array([15, 31, 47])
 plot_frames = np.array([3, 7, 11,])
 auto_pause_frames = np.array([])  # Bez auto-pauzy
