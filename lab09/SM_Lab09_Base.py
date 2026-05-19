@@ -9,18 +9,16 @@ from tqdm import tqdm
 ##############################################################################
 
 kat = r'.'  # katalog z plikami wideo
-plik = "clip_1.mp4"  # nazwa pliku
-ile = 20
-key_frame_counter = 8  # Klatka kluczowa co 4 klatki
-# plot_frames = np.array([15, 31, 47])
-plot_frames = np.array([3, 7, 11,])
+plik = "clip_4.mp4"  # nazwa pliku
+ile = 60
+key_frame_counter = 4  # Klatka kluczowa co 4 klatki
+plot_frames = np.array([15, 31, 47])
 auto_pause_frames = np.array([])  # Bez auto-pauzy
-subsampling = "4:2:0"  # ZMIENIAJ W TRAKCIE TESTÓW (np. 4:2:2, 4:2:0, 4:1:0)
-dzielnik = 4  # ZMIENIAJ W TRAKCIE TESTÓW (np. 2, 4, 8)
+subsampling = "4:1:0"  # ZMIENIAJ W TRAKCIE TESTÓW (np. 4:2:2, 4:2:0, 4:1:0)
+dzielnik = 8  # ZMIENIAJ W TRAKCIE TESTÓW (np. 2, 4, 8)
 wyswietlaj_kaltki = False  # Pokazuj podgląd wideo
-# ROI = [[200, 500, 300, 800]]            # Środek kadru - łapie idącego mężczyznę
-ROI = [[300, 600, 500, 900]]
-metoda_kompresji_strumieniowej = 'RLE'  # 'brak', 'RLE' lub 'ByteRun'
+ROI = [[200, 500, 300, 800]]            # Środek kadru
+metoda_kompresji_strumieniowej = 'brak'  # 'brak', 'RLE' lub 'ByteRun'
 
 
 ##############################################################################
@@ -253,20 +251,24 @@ def decompress_KeyFrame(KeyFrame):
         Cb = byte_decoder(KeyFrame.Cb)
         Cr = byte_decoder(KeyFrame.Cr)
     else:
-        Y = KeyFrame.semi_Y
-        Cb = KeyFrame.semi_Cb
-        Cr = KeyFrame.semi_Cr
-    return frame_layers_to_image(Y, Cr, Cb, subsampling)
+        Y = KeyFrame.semi_Y.copy()
+        Cb = KeyFrame.semi_Cb.copy()
+        Cr = KeyFrame.semi_Cr.copy()
+
+    img = frame_layers_to_image(Y, Cr, Cb, subsampling)
+    return img, Y, Cb, Cr
 
 
-def compress_not_KeyFrame(Frame_class, KeyFrame):
+def compress_not_KeyFrame(Frame_class, ReferenceFrame):
     Compress_data = data()
     Compress_data.semi_Y = Frame_class.Y.copy()
     Compress_data.semi_Cb = Frame_class.Cb.copy()
     Compress_data.semi_Cr = Frame_class.Cr.copy()
-    diff_Y = (Frame_class.Y - KeyFrame.semi_Y) // dzielnik
-    diff_Cb = (Frame_class.Cb - KeyFrame.semi_Cb) // dzielnik
-    diff_Cr = (Frame_class.Cr - KeyFrame.semi_Cr) // dzielnik
+
+    diff_Y = (Frame_class.Y - ReferenceFrame.semi_Y) // dzielnik
+    diff_Cb = (Frame_class.Cb - ReferenceFrame.semi_Cb) // dzielnik
+    diff_Cr = (Frame_class.Cr - ReferenceFrame.semi_Cr) // dzielnik
+
     if metoda_kompresji_strumieniowej == 'RLE':
         Compress_data.Y = rle_encoder(diff_Y)
         Compress_data.Cb = rle_encoder(diff_Cb)
@@ -282,7 +284,7 @@ def compress_not_KeyFrame(Frame_class, KeyFrame):
     return Compress_data
 
 
-def decompress_not_KeyFrame(Compress_data, KeyFrame):
+def decompress_not_KeyFrame(Compress_data, ReferenceFrame):
     if metoda_kompresji_strumieniowej == 'RLE':
         diff_Y = rle_decoder(Compress_data.Y)
         diff_Cb = rle_decoder(Compress_data.Cb)
@@ -295,10 +297,13 @@ def decompress_not_KeyFrame(Compress_data, KeyFrame):
         diff_Y = Compress_data.Y
         diff_Cb = Compress_data.Cb
         diff_Cr = Compress_data.Cr
-    Y = KeyFrame.semi_Y + (diff_Y * dzielnik)
-    Cb = KeyFrame.semi_Cb + (diff_Cb * dzielnik)
-    Cr = KeyFrame.semi_Cr + (diff_Cr * dzielnik)
-    return frame_layers_to_image(Y, Cr, Cb, subsampling)
+
+    Y = ReferenceFrame.semi_Y + (diff_Y * dzielnik)
+    Cb = ReferenceFrame.semi_Cb + (diff_Cb * dzielnik)
+    Cr = ReferenceFrame.semi_Cr + (diff_Cr * dzielnik)
+
+    img = frame_layers_to_image(Y, Cr, Cb, subsampling)
+    return img, Y, Cb, Cr
 
 
 ##############################################################################
@@ -315,6 +320,8 @@ if wyswietlaj_kaltki:
 compression_information = np.zeros((3, ile))
 zebrane_do_wykresu = []
 
+ReferenceFrame = data()
+
 for i in range(ile):
     print(f"\nPrzetwarzanie klatki {i + 1}/{ile}...")
     ret, frame = cap.read()
@@ -330,13 +337,22 @@ for i in range(ile):
         cY = KeyFrame.Y
         cCb = KeyFrame.Cb
         cCr = KeyFrame.Cr
-        Decompresed_Frame = decompress_KeyFrame(KeyFrame)
+        Decompresed_Frame, rec_Y, rec_Cb, rec_Cr = decompress_KeyFrame(KeyFrame)
+
+        ReferenceFrame.semi_Y = rec_Y
+        ReferenceFrame.semi_Cb = rec_Cb
+        ReferenceFrame.semi_Cr = rec_Cr
     else:
-        Compress_data = compress_not_KeyFrame(Frame_class, KeyFrame)
+        Compress_data = compress_not_KeyFrame(Frame_class, ReferenceFrame)
         cY = Compress_data.Y
         cCb = Compress_data.Cb
         cCr = Compress_data.Cr
-        Decompresed_Frame = decompress_not_KeyFrame(Compress_data, KeyFrame)
+
+        Decompresed_Frame, rec_Y, rec_Cb, rec_Cr = decompress_not_KeyFrame(Compress_data, ReferenceFrame)
+
+        ReferenceFrame.semi_Y = rec_Y
+        ReferenceFrame.semi_Cb = rec_Cb
+        ReferenceFrame.semi_Cr = rec_Cr
 
     compression_information[0, i] = (frame[:, :, 0].size - cY.size) / frame[:, :, 0].size
     compression_information[1, i] = (frame[:, :, 0].size - cCb.size) / frame[:, :, 0].size
@@ -379,19 +395,24 @@ for i in range(ile):
 cap.release()
 cv2.destroyAllWindows()
 
-# Przygotowanie stringu do nazw plików
 safe_sub = subsampling.replace(':', '')
 nazwa_baza = f"{plik}_sub{safe_sub}_div{dzielnik}_{metoda_kompresji_strumieniowej}"
 
 ##############################################################################
-####     Generowanie i zapis Wykresu Wizualnego (3 obrazki) ##################
+####     Generowanie i zapis Wykresu Wizualnego (Modyfikacja Napisu)  ########
 ##############################################################################
 if len(zebrane_do_wykresu) > 0:
-    fig, axs = plt.subplots(len(zebrane_do_wykresu)* 2, 3, figsize=(15, 4 * len(zebrane_do_wykresu)))
+    fig, axs = plt.subplots(len(zebrane_do_wykresu) * 2, 3, figsize=(15, 8 * len(zebrane_do_wykresu)))
 
-    # Obsługa przypadku, gdy wybraliśmy tylko 1 klatkę do narysowania
+    napis_na_gorze = (
+        f"Parametry testu wizualnego:\n"
+        f"Plik: {plik}  |  Subsampling: {subsampling}  |  Dzielnik (div): {dzielnik}\n"
+        f"Algorytm strumieniowy: {metoda_kompresji_strumieniowej}  |  Key-Frame co: {key_frame_counter} klatek  |  ROI: {ROI[0]}"
+    )
+    fig.suptitle(napis_na_gorze, fontsize=14, fontweight='bold', y=0.98)
+
     if len(zebrane_do_wykresu) == 1:
-        axs = [axs]
+        axs = np.array(axs).reshape(2, 3)
 
     for idx, (oryg, diff_rgb, zdek, diff_y, diff_cb, diff_cr, nr_klatki) in enumerate(zebrane_do_wykresu):
         row_idx = idx * 2
@@ -400,7 +421,7 @@ if len(zebrane_do_wykresu) > 0:
         axs[row_idx][0].axis('off')
 
         axs[row_idx][1].imshow(diff_rgb)
-        axs[row_idx][1].set_title(f'Różnica (Klatka {nr_klatki})')
+        axs[row_idx][1].set_title(f'Różnica RGB (Klatka {nr_klatki})')
         axs[row_idx][1].axis('off')
 
         axs[row_idx][2].imshow(zdek)
@@ -419,25 +440,34 @@ if len(zebrane_do_wykresu) > 0:
         axs[row_idx + 1][2].set_title(f'Różnica Cr (Chrominancja)')
         axs[row_idx + 1][2].axis('off')
 
-    plt.tight_layout()
+    plt.tight_layout(rect=[0, 0, 1, 0.94])
     nazwa_wizualna = f"wizualizacja_{nazwa_baza}.png"
     plt.savefig(nazwa_wizualna)
     print(f"\nZapisano plik: {nazwa_wizualna}")
     plt.show()
 
 ##############################################################################
-####     Generowanie i zapis Wykresu Liniowego (Kompresja)  ##################
+####     Generowanie i zapis Wykresu Liniowego (Modyfikacja Napisu)  #########
 ##############################################################################
-plt.figure()
+plt.figure(figsize=(10, 6))
 plt.plot(np.arange(0, ile), compression_information[0, :] * 100, label='Kompresja Y (%)')
 plt.plot(np.arange(0, ile), compression_information[1, :] * 100, label='Kompresja Cb (%)')
 plt.plot(np.arange(0, ile), compression_information[2, :] * 100, label='Kompresja Cr (%)')
-plt.title(f"Plik: {plik}, subsampling={subsampling}, div={dzielnik}, alg.={metoda_kompresji_strumieniowej}, {key_frame_counter=}")
+
+napis_wykresu_liniowego = (
+    f"Wykres skuteczności kompresji strumieniowej\n"
+    f"Plik: {plik}  |  Subsampling: {subsampling}  |  Dzielnik: {dzielnik}\n"
+    f"Algorytm: {metoda_kompresji_strumieniowej}  |  Key-Frame co: {key_frame_counter} klatki"
+)
+plt.title(napis_wykresu_liniowego, fontsize=11, fontweight='bold', pad=15)
+
 plt.legend()
 plt.xlabel("Numer klatki")
 plt.ylabel("% zysku pamięci")
+plt.grid(True, linestyle='--', alpha=0.5)
 
-nazwa_wykres = f"wykres_kompresji_{nazwa_baza+str(key_frame_counter)}.png"
+nazwa_wykres = f"wykres_kompresji_{nazwa_baza}_{str(key_frame_counter)}.png"
+plt.tight_layout()
 plt.savefig(nazwa_wykres)
 print(f"Zapisano plik: {nazwa_wykres}")
 plt.show()
