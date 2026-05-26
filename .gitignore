@@ -96,3 +96,5 @@ venv.bak/
 *.tif
 *.docx
 *.mp4
+*.xlsx
+*.zip
