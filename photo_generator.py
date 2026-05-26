@@ -4,10 +4,10 @@ import io
 
 width = 512
 height = 512
-save_path = "."
-amount = 3
+save_path = "/Users/norbertswistak/SystemyMultimedialne1/lab11/"
+amount = 1
 
-save_as_binary = False
+save_as_binary = True
 
 for i in range(amount):
     url = f"https://picsum.photos/{width}/{height}"
@@ -17,7 +17,7 @@ for i in range(amount):
         if save_as_binary:
             image_data = io.BytesIO(response.content)
             img = Image.open(image_data)
-            binary_img = img.convert('1')
+            binary_img = img.convert('L').point(lambda p: 255 if p > 128 else 0).convert('1')
 
             file_name = f"{save_path}/image_binary_{i}.png"
             binary_img.save(file_name)
