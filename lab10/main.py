@@ -5,10 +5,11 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from skimage.metrics import structural_similarity as ssim
 
+
 def JPG_comp(photo, quality_params):
     img = cv2.imread(photo)
     num_plots = len(quality_params) + 1
-    fig, axs = plt.subplots(1, num_plots, figsize=(15, 5), num=f"JPG - {photo}")
+    fig, axs = plt.subplots(1, num_plots, figsize=(22, 5), num=f"JPG - {photo}")
     axs[0].imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
     axs[0].set_title("Oryginal")
     axs[0].axis('off')
@@ -31,7 +32,7 @@ def JPG_comp(photo, quality_params):
 def Blur_comp(photo, kernel_sizes):
     img = cv2.imread(photo)
     num_plots = len(kernel_sizes) + 1
-    fig, axs = plt.subplots(1, num_plots, figsize=(15, 5), num=f"Blur - {photo}")
+    fig, axs = plt.subplots(1, num_plots, figsize=(22, 5), num=f"Blur - {photo}")
     axs[0].imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
     axs[0].set_title("Oryginal")
     axs[0].axis('off')
@@ -52,7 +53,7 @@ def Blur_comp(photo, kernel_sizes):
 def Noise_comp(photo, alpha_params, sigma=50):
     img = cv2.imread(photo)
     num_plots = len(alpha_params) + 1
-    fig, axs = plt.subplots(1, num_plots, figsize=(15, 5), num=f"Noise - {photo}")
+    fig, axs = plt.subplots(1, num_plots, figsize=(22, 5), num=f"Noise - {photo}")
     axs[0].imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
     axs[0].set_title("Oryginal")
     axs[0].axis('off')
@@ -103,12 +104,6 @@ def calculate_if(I, K):
 def calculate_ssim(I, K):
     return ssim(I, K, channel_axis=2, data_range=255)
 
-
-
-
-
-
-
 def evaluate_metrics(photos, configs):
     results = []
     for photo in photos:
@@ -133,15 +128,15 @@ def evaluate_metrics(photos, configs):
                     })
     return pd.DataFrame(results)
 
-
 def display_tables_and_plots(df, configs):
     pd.options.display.float_format = '{:.4f}'.format
     metrics = ['MSE', 'NMSE', 'PSNR', 'IF', 'SSIM']
-
-    for metric in metrics:
-        print(f"\n--- TABELA DLA MIARY: {metric} ---")
-        pivot = pd.pivot_table(df, values=metric, index=['Metoda', 'Parametr'], columns=['Zdjecie'])
-        print(pivot)
+    with pd.ExcelWriter('wyniki_miar.xlsx', engine='openpyxl') as writer:
+        for metric in metrics:
+            print(f"\n--- TABELA DLA MIARY: {metric} ---")
+            pivot = pd.pivot_table(df, values=metric, index=['Metoda', 'Parametr'], columns=['Zdjecie'])
+            print(pivot)
+            pivot.to_excel(writer, sheet_name=metric)
 
     fig, axes = plt.subplots(3, 5, figsize=(20, 12))
     fig.suptitle('Korelacja miar obiektywnych z poziomem znieksztalcen', fontsize=16)
@@ -173,9 +168,9 @@ def test_function():
     photos = ['corgie.jpg', 'gory.jpg', 'kaktusy.jpg']
 
     configs = {
-        'JPEG': {'params': [80, 50, 15], 'dir': 'jpeg', 'prefix': 'jpeg'},
-        'Blur': {'params': [5, 15, 35], 'dir': 'blur', 'prefix': 'blur'},
-        'Noise': {'params': [0.2, 0.6, 1.0], 'dir': 'noise', 'prefix': 'noise'}
+        'JPEG': {'params': [95, 85, 75, 65, 55, 45, 35, 25, 15, 5], 'dir': 'jpeg', 'prefix': 'jpeg'},
+        'Blur': {'params': [3, 5, 7, 9, 13, 17, 21, 25, 31, 35], 'dir': 'blur', 'prefix': 'blur'},
+        'Noise': {'params': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], 'dir': 'noise', 'prefix': 'noise'}
     }
 
     for photo in photos:
@@ -190,7 +185,6 @@ def test_function():
 
     if not df_results.empty:
         display_tables_and_plots(df_results, configs)
-
 
 if __name__ == "__main__":
     test_function()
